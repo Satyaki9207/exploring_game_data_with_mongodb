@@ -1,0 +1,75 @@
+# finding game with gameid 3
+db.amongus.find({'game':'3'})
+
+# Creating new collection with data for game 3
+db.game3.insertMany(db.amongus.find({'game':'3'}).toArray())
+
+#Display the Game Feed data for the game in the new collection.
+db.amongus.find({'game':'3'},{'Game_Feed':1,'_id':null})
+db.game3.find({'game':'3'},{'Game_Feed':1,'_id':null})
+
+# last event of game3
+db.amongus.find({$and:[{'game':'3'},{'Game_Feed.Outcome':{$regex:'End'}}]},{"Game_Feed.$":1,"_id":0})
+db.game3.find({'Game_Feed.Outcome':{$regex:'End'}},{'Game_Feed.$':1,_id:null})
+
+# who won the game
+db.amongus.find({$and:[{'game':'3'},{'Game_Feed.Outcome':{$regex:'End'}}]},{"Game_Feed.Game Feed":1,"_id":0})
+db.game3.find({'Game_Feed.Outcome':{$regex:'End'}},{'Game_Feed.Game Feed':1,_id:null})
+
+# who picked black color in game 3
+db.amongus.find({$and:[{'game':'3'},{"player_data.Color":"Black"}]},{"player_data.$":1,"_id":0})
+db.game3.find({"player_data.Color":"Black"},{'player_data.$':1,_id:null})
+
+
+# How many voting events happened in game 3
+db.amongus.aggregate({$match:{'game':'3'}},{$project:{_id:null,cnt:{$size:'$voting_data.Vote_Event'}}})
+db.game3.aggregate({$project:{cnt:{$size:'$voting_data.Vote_Event'}}})
+
+
+
+# Number of events across all games
+# get number of events per game as a variable cnt
+# Then sum cnt accross all records
+
+db.amongus.aggregate([{$project:{_id:'$game', cnt: {$size: '$Game_Feed'}}},{$group:{_id:null,total_events:{$sum:'$cnt'}}}]) 
+
+# how many matches did the crew win
+db.amongus.find({'Game_Feed.Game Feed':{$regex:'Crew Win'}}).count() 
+
+# how many matches did the impostor win 
+db.amongus.find({'Game_Feed.Game Feed':{$regex:'Impostor Win'}}).count()
+
+#How many matches were played on each map 
+db.amongus.aggregate([ { "$unwind": "$Game_Feed" },
+{ "$match" : {"Game_Feed.Event":1}},
+{ "$group" : {"_id": "$Game_Feed.Map","count": { "$sum":1}}}]);
+
+# How many times in total across all games did the crew skip a vote
+db.amongus.aggregate([{ "$unwind": "$Game_Feed" },
+{ "$match" : {"Game_Feed.Votes Off Code":0}},
+{ "$group" : {"_id":null, "count": { "$sum": 1 }}}])
+
+#How many times in total across all matches does the crew vote against imposters
+db.amongus.aggregate([{ "$unwind": "$Game_Feed" },
+{ "$match" : {"Game_Feed.Votes Off Code":2}},
+{ "$group" : {"_id":null, "count": { "$sum": 1 }}}])
+
+#Find the number of unique players in the data set
+db.amongus.distinct("player_data.name").length
+
+# finding best crew member
+db.amongus.aggregate([
+{"$unwind": "$voting_data"},
+{"$match" : {"voting_data.Vote": {"$regex":"Impostor voted off"}} },
+{"$group" : {"_id":"$voting_data.name","Count": {"$sum":1}}},
+{'$sort':{'Count':-1}} ])
+
+# worst crew member
+
+db.amongus.aggregate([
+{"$unwind": "$voting_data"},
+{"$match" : {"voting_data.Vote": {"$regex":"Crew voted off"}} },
+{"$group" : {"_id":"$voting_data.name","Count": {"$sum":1}}},
+{'$sort':{'Count':-1}} ])
+
+# win percentage for all players
